@@ -1,0 +1,16 @@
+{{- if .Values.storage.persistent }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  finalizers:
+  - kubernetes.io/pvc-protection
+  name: {{ .Release.Name }}-dir 
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+  storageClassName: {{ .Values.storage.storageClassName }}
+  volumeMode: Filesystem
+{{- end }}

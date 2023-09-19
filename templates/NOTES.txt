@@ -1,0 +1,37 @@
+ecFlow server configured to port {{ .Values.server.port }}
+
+ECF_HOME is at {{ .Values.server.home }}
+
+suites and scripts are located at {{ .Values.server.base }}
+
+{{- if .Values.api.enabled }}
+
+Access ecFlow REST API at address https://{{ .Values.api.route.host }}
+
+Internal address http://{{ .Release.Name }}-http:8080
+
+{{- else }}
+
+ecFlow REST API disabled
+
+{{- end }}
+
+{{- if .Values.storage.persistent }}
+
+ecFlow is using persistent storage, size: {{ .Values.storage.size }}
+
+{{- else }}
+
+ecFlow is using non-persistent storage
+
+{{- end }}
+
+{{- if .Values.logserver.enabled }}
+
+Log server at port {{ .Values.logserver.port }}
+
+{{ else }}
+
+Log server disabled
+
+{{- end }}

@@ -1,0 +1,64 @@
+# Default values for ecflow.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository:
+    host: quay.io/fmi/ecflow
+    tag: latest
+
+storage:
+  persistent: false
+  # only applicable when persistent: true
+  size: 128Mi
+  storageClassName: ocs-storagecluster-cephfs
+
+server:
+  port: 5237
+  home: /ecflow
+  base: /ecflow/suites
+  suites:
+    repos:
+    - name: reponame
+      host: git@github.com:org/repo.git
+      branch: main
+    sshKey:
+      # ssh key to a private repo, leave empty do disable
+      name:
+  resources:
+    limits:
+      cpu: 750m
+      memory: 512Mi
+    requests:
+      cpu: 750m
+      memory: 256Mi
+
+logserver:
+  enabled: true
+  port: 9316
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 500m
+      memory: 256Mi
+ 
+api:
+  enabled: true
+  tokens:
+    fileName: "tokens.json"
+    configMapName: "tokens-file"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 500m
+      memory: 256Mi
+  route:
+    enabled: true
+    host: snwc-ecflow-dev.apps.ock.fmi.fi
+
+serviceAccount:
+  create: true

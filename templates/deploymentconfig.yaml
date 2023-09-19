@@ -1,0 +1,320 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: {{ .Release.Name }}-server
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Rolling
+    rollingParams:
+      timeoutSeconds: {{ .Values.timeoutSeconds }}
+  template:
+    metadata:
+      name: {{ .Release.Name }}-server
+      labels:
+        app: {{ .Release.Name }}-server
+    spec:
+      serviceAccountName: {{ include "ecflow.serviceAccountName" . }}
+      {{- if not .Values.storage.persistent }}
+      initContainers:
+      - name: init-container
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:latest
+        volumeMounts:
+        - name: ecflow-dir
+          mountPath: "/ecflow"
+        {{- if .Values.server.suites.sshKey.name }}
+        - name: ssh-key
+          mountPath: "/mnt/secrets"
+          readOnly: true
+        env:
+        - name: GIT_SSH_COMMAND
+          value: "ssh -i /mnt/secrets/ssh-privatekey -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+        {{- end }}
+        command:
+        - sh
+        - -c
+        - |
+          set -uex
+          mkdir -p /ecflow/suites
+          {{ range .Values.server.suites.repos }}
+          cd /ecflow/suites
+          git clone -b {{ .branch | default "main" }} {{ .host }}
+          cd $(basename {{ .host }} .git)
+          git rev-parse --short HEAD > .LAST_GREEN_COMMIT
+          {{ end }}
+      {{- end }}
+      containers:
+      - name: server
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:latest
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.server.port }}
+          protocol: TCP
+        command:
+        - sh
+        - -c
+        - |
+          {{- if .Values.storage.persistent }}
+          mkdir -p /ecflow/checkpoint /ecflow/suites
+          {{- end }}
+          /usr/ecflow5/bin/start.sh
+
+        env:
+        - name: ECF_BASE
+          value: {{ .Values.server.base }}
+        - name: ECF_PORT
+          value: {{ .Values.server.port | quote}}
+        - name: ECF_HOME
+          value: {{ .Values.server.home }}
+        - name: HOME
+          value: "/tmp/"
+        - name: ECF_INCLUDE
+          value: "/etc/ecflow5"
+        {{- if .Values.logserver.enabled }}
+        - name: ECF_LOGPORT
+          value: {{ .Values.logserver.port | quote }}
+        - name: ECF_LOGHOST
+          value: localhost
+        {{- end }}
+        {{- if .Values.api.enabled }}
+        - name: ECF_RESTAPI_HOST
+          value: https://{{ .Values.api.route.host }}
+        - name: ECF_RESTAPI_SERVICE_HOST
+          value: {{ .Release.Name }}-http
+        - name: ECF_RESTAPI_SERVICE_PORT
+          value: "8080"
+        {{- end}}
+        {{- if .Values.storage.persistent }}
+        - name: ECF_DISABLE_SUITE_LOAD
+          value: "1"
+        - name: ECF_CHECK
+          value: /ecflow/checkpoint/ecf.check
+        - name: ECF_CHECKOLD
+          value: /ecflow/checkpoint/ecf.check.b
+        {{- end }}
+        resources:
+          {{- toYaml .Values.server.resources | nindent 12 }}
+        volumeMounts:
+        - name: ecflow-dir
+          mountPath: "/ecflow"
+      - name: sidecar
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:latest
+        volumeMounts:
+        - name: ecflow-dir
+          mountPath: "/ecflow"
+        {{- if .Values.server.suites.sshKey.name }}
+        - name: ssh-key
+          mountPath: "/mnt/secrets"
+          readOnly: true
+        {{- end }}
+        env:
+        {{- if not (eq .Values.server.suites.sshKey.name "") }}
+        - name: GIT_SSH_COMMAND
+          value: "ssh -i /mnt/secrets/ssh-privatekey -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+        {{- end }}
+        - name: HOME
+          value: /tmp
+        - name: EDITOR
+          value: vim
+        - name: PYTHONPATH
+          value: /usr/ecflow5/lib/python3.6/site-packages/
+        {{- if .Values.api.enabled }}
+        - name: ECF_RESTAPI_HOST
+          value: https://{{ .Values.api.route.host }}
+        - name: ECF_RESTAPI_SERVICE_HOST
+          value: {{ .Release.Name }}-http
+        - name: ECF_RESTAPI_SERVICE_PORT
+          value: "8080"
+        {{- end}}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        command:
+        - sh
+        - -c
+        - |
+          set -x
+          {{- if .Values.storage.persistent }}
+          create_defs() {
+            for py in $(find $1 -name "*py"); do
+              dir=$(dirname $py)
+              cd $dir
+              ECF_FILES=$dir/scripts python3 $py
+            done
+          }
+
+          {{ range .Values.server.suites.repos }}
+          cd /ecflow/suites
+          repodir=$(basename {{ .host }} .git)
+          if [ ! -d "/ecflow/suites/$repodir" ]; then
+            git clone -b {{ .branch | default "main" }} {{ .host }}
+            cd $repodir
+            git rev-parse --short HEAD > .LAST_GREEN_COMMIT
+          fi
+          {{ end }}
+
+          create_defs /ecflow/suites
+
+          while [ 1 ]; do
+            for d in $(ls -d /ecflow/suites/*); do
+              cd $d
+              latest=$(git rev-parse --short origin/$(git rev-parse --abbrev-ref HEAD))
+              if [ "$latest" != $(cat .LAST_GREEN_COMMIT) ]; then
+                git pull
+                echo $latest > .LAST_GREEN_COMMIT
+                create_defs $d
+              fi
+            done
+            sleep 600
+          done
+          {{ else }}
+          sleep infinity
+          {{- end }}
+
+      {{- if .Values.logserver.enabled }}
+      - name: logserver
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:latest
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.logserver.port }}
+          protocol: TCP
+        command:
+        - sh
+        - -c
+        - |
+          set -x
+          mkdir -p $LOGDIR
+          ecflow_logsvr.pl 
+
+        env:
+        - name: ECF_PORT
+          value: {{ .Values.server.port | quote }}
+        - name: HOME
+          value: "/tmp/"
+        - name: ECF_HOME
+          value: {{ .Values.server.home }}
+        - name: LOGPORT
+          value: {{ .Values.logserver.port | quote }}
+        - name: LOGDIR
+          value: /tmp/logserver
+        resources:
+          {{- toYaml .Values.logserver.resources | nindent 12 }}
+        volumeMounts:
+        - name: ecflow-dir
+          mountPath: "/ecflow"
+      {{- end }}
+      volumes:
+      - name: ecflow-dir
+      {{- if .Values.storage.persistent }}
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-dir
+      {{ else }}
+        emptyDir: {}
+      {{- end }}
+      {{- if .Values.server.suites.sshKey.name }}
+      - name: ssh-key
+        secret:
+          secretName: {{ .Values.server.suites.sshKey.name }}
+      {{- end }}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+    imageChangeParams:
+      automatic: true
+      containerNames:
+      - server
+{{- if .Values.logserver.enabled }}
+      - logserver
+{{- end }}
+      from:
+        kind: ImageStreamTag
+        name: {{ .Release.Name }}:latest
+  - type: ImageChange
+    imageChangeParams:
+      automatic: true
+      containerNames:
+      - sidecar
+      from:
+        kind: ImageStreamTag
+        name: {{ .Release.Name }}-util:latest
+
+{{- if .Values.api.enabled }}
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: {{ .Release.Name }}-http
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Rolling
+    rollingParams:
+      timeoutSeconds: {{ .Values.timeoutSeconds }}
+  template:
+    metadata:
+      name: {{ .Release.Name }}-http
+      labels:
+        app: {{ .Release.Name }}-http
+    spec:
+      containers:
+      - name: http
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:latest
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        command:
+        - sh
+        - -c
+        - |
+          set -x
+          sleep 8
+          ecflow_http -v --no_ssl 
+
+        env:
+        - name: ECF_PORT
+          value: {{ .Values.server.port | quote }}
+        - name: ECF_HOST
+          value:  {{ .Release.Name }}-server
+        - name: ECF_RESTAPI_TOKENS_FILE
+          value: /mnt/secrets/{{ .Values.api.tokens.fileName }}
+        - name: HOME
+          value: "/tmp/"
+        resources:
+          {{- toYaml .Values.api.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: /v1/server/ping
+            port: "8080-tcp"
+          initialDelaySeconds: 10
+          periodSeconds: 60
+        volumeMounts:
+        - name: tokens-file
+          mountPath: /mnt/secrets
+          readOnly: true
+      volumes:
+      - name: tokens-file
+        configMap:
+          name: {{ .Values.api.tokens.configMapName }}
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      terminationGracePeriodSeconds: 30
+  triggers:
+  - type: ConfigChange
+  - type: ImageChange
+    imageChangeParams:
+      automatic: true
+      containerNames:
+      - http
+      from:
+        kind: ImageStreamTag
+        name: {{ .Release.Name }}:latest
+{{- end }}

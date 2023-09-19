@@ -1,0 +1,64 @@
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: {{ .Release.Name }}:latest
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1Gi
+    requests:
+      cpu: "1"
+      memory: 1Gi
+  runPolicy: Serial
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM {{ .Values.image.repository.host }}:{{ .Values.image.repository.tag }}
+
+    type: Git
+  strategy:
+    type: Docker
+  successfulBuildsHistoryLimit: 2
+  triggers:
+    - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: {{ .Release.Name }}-util
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: {{ .Release.Name }}-util:latest
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1Gi
+    requests:
+      cpu: "1"
+      memory: 1Gi
+  runPolicy: Serial
+  source:
+    type: Dockerfile
+    dockerfile: |
+      FROM rockylinux/rockylinux:8
+      RUN dnf -y install https://download.fmi.fi/fmiforge/rhel/8/x86_64/fmiforge-release-latest.noarch.rpm \
+                         https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm \
+                         https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
+          dnf -y module disable postgresql && \
+          dnf -y install ecflow5 ecflow5-python ecflow-scripts vim git findutils && \
+          dnf -y clean all
+
+    type: Git
+  strategy:
+    type: Docker
+  successfulBuildsHistoryLimit: 2
+  triggers:
+    - type: ConfigChange

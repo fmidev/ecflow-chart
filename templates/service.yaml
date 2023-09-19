@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-server
+  labels:
+    {{- include "ecflow.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.server.port }}
+      protocol: TCP
+      name: {{ .Values.server.port }}-tcp
+  selector:
+    app: {{ .Release.Name }}-server
+{{- if .Values.api.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-http
+  labels:
+    {{- include "ecflow.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      protocol: TCP
+      name: "8080-tcp"
+  selector:
+    app: {{ .Release.Name }}-http
+{{- end }}
+{{- if .Values.logserver.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-logserver
+  labels:
+    {{- include "ecflow.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.logserver.port }}
+      protocol: TCP
+      name: {{ .Values.logserver.port }}-tcp
+  selector:
+    app: {{ .Release.Name }}-logserver
+{{- end }}
