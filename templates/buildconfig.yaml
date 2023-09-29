@@ -53,8 +53,13 @@ spec:
                          https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm \
                          https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
           dnf -y module disable postgresql && \
-          dnf -y install ecflow5 ecflow5-python ecflow-scripts vim git findutils && \
+          dnf -y install ecflow5 ecflow5-python ecflow-scripts vim git findutils gcc && \
           dnf -y clean all
+
+      RUN python3 -m pip install black
+
+      ENV PATH /usr/ecflow5/bin:$PATH
+      WORKDIR /ecflow/suites
 
     type: Git
   strategy:
