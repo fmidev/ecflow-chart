@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+environment: dev
+cloud: fmi
+
 image:
   repository:
     host: quay.io/fmi/ecflow
@@ -27,11 +30,11 @@ server:
       name:
   resources:
     limits:
-      cpu: 750m
-      memory: 512Mi
+      cpu: "1"
+      memory: 850Mi
     requests:
-      cpu: 750m
-      memory: 256Mi
+      cpu: "1"
+      memory: 512Mi
 
 logserver:
   enabled: true
