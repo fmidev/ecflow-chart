@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/schema#",
+  "type": "object",
+  "required": [
+    "environment",
+    "cloud",
+    "storage",
+    "server",
+    "api",
+    "serviceAccount"
+  ],
+  "properties": {
+    "environment": {
+      "type": "string",
+      "pattern": "^(dev|test|preop|prod)$"
+    }
+  }
+}
