@@ -40,7 +40,13 @@ Log server disabled
 
 To access server with ecflow-ui, first use `oc` to provide port forwarding:
 
-oc port-forward pod/{{ .Release.Name }}-dc-XX 1{{ .Values.server.port }}:{{ .Values.server.port }}
+1. Find out the name of the ecflow server pod:
+
+  oc get pods -l deploymentconfig=smartmet-nwc-ecflow-dev-server -o custom-columns=NAME:.metadata.name --no-headers
+
+2. Set up port forwarding to that pod
+
+  oc port-forward pod/PODNAME 1{{ .Values.server.port }}:{{ .Values.server.port }} &
 
 Add server to ecflow-ui with following information:
 
