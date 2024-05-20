@@ -3,12 +3,8 @@
 # Declare variables to be passed into your templates.
 
 environment: dev
-cloud: fmi
-
-image:
-  repository:
-    host: quay.io/fmi/ecflow
-    tag: latest
+cloud: aws
+prodType: prod
 
 storage:
   persistent: false
