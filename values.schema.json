@@ -12,7 +12,7 @@
   "properties": {
     "environment": {
       "type": "string",
-      "pattern": "^(dev|test|preop|prod)$"
+      "pattern": "^(dev|test|prod)$"
     }
   }
 }
