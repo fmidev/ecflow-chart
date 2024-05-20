@@ -1,8 +1,10 @@
 ecFlow server configured to port {{ .Values.server.port }}
 
-ECF_HOME is at {{ .Values.server.home }}
+ENVIRONMENT is {{ .Values.environment }}
+CLOUD is {{ .Values.cloud }}
+ECF_HOME is {{ .Values.server.home }}
 
-suites and scripts are located at {{ .Values.server.base }}
+Suites and scripts are located at {{ .Values.server.base }}
 
 {{- if .Values.api.enabled }}
 
@@ -30,8 +32,18 @@ ecFlow is using non-persistent storage
 
 Log server at port {{ .Values.logserver.port }}
 
-{{ else }}
+{{- else }}
 
 Log server disabled
 
 {{- end }}
+
+To access server with ecflow-ui, first use `oc` to provide port forwarding:
+
+oc port-forward pod/{{ .Release.Name }}-dc-XX 1{{ .Values.server.port }}:{{ .Values.server.port }}
+
+Add server to ecflow-ui with following information:
+
+* host: localhost
+* port: 1{{ .Values.server.port }}
+* ssl: off
