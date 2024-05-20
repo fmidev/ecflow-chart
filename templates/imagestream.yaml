@@ -11,6 +11,17 @@ metadata:
 spec:
   lookupPolicy:
     local: false
+  tags:
+{{- if ne .Values.environment "dev" }}
+  - name: {{ .Values.prodType }}
+{{- end }}
+  - from:
+      kind: DockerImage
+      name: quay.io/fmi/ecflow:latest
+    importPolicy:
+      insecure: false
+      scheduled: true
+    name: latest
 ---
 apiVersion: image.openshift.io/v1
 kind: ImageStream

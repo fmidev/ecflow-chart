@@ -2,35 +2,6 @@
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  name: {{ .Release.Name }}
-spec:
-  output:
-    to:
-      kind: ImageStreamTag
-      name: {{ .Release.Name }}:latest
-  resources:
-    limits:
-      cpu: "1"
-      memory: 1Gi
-    requests:
-      cpu: "1"
-      memory: 1Gi
-  runPolicy: Serial
-  source:
-    type: Dockerfile
-    dockerfile: |
-      FROM {{ .Values.image.repository.host }}:{{ .Values.image.repository.tag }}
-
-    type: Git
-  strategy:
-    type: Docker
-  successfulBuildsHistoryLimit: 2
-  triggers:
-    - type: ConfigChange
----
-apiVersion: build.openshift.io/v1
-kind: BuildConfig
-metadata:
   name: {{ .Release.Name }}-util
 spec:
   output:
@@ -53,13 +24,12 @@ spec:
                          https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm \
                          https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm && \
           dnf -y module disable postgresql && \
-          dnf -y install ecflow5 ecflow5-python ecflow-scripts vim git findutils gcc && \
+          dnf -y install ecflow5 ecflow5-python ecflow-scripts vim git findutils gcc python3-devel && \
           dnf -y clean all
 
       RUN python3 -m pip install black
 
       ENV PATH /usr/ecflow5/bin:$PATH
-      WORKDIR /ecflow/suites
 
     type: Git
   strategy:
