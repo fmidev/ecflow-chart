@@ -3,8 +3,8 @@
 # Declare variables to be passed into your templates.
 
 environment: dev
-cloud: aws
-prodType: prod
+cloud: fmi
+prodType: dev
 
 storage:
   persistent: false
@@ -58,6 +58,3 @@ api:
   route:
     enabled: true
     host: snwc-ecflow-dev.apps.ock.fmi.fi
-
-serviceAccount:
-  create: true
