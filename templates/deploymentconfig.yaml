@@ -15,11 +15,11 @@ spec:
       labels:
         app: {{ .Release.Name }}-server
     spec:
-      serviceAccountName: {{ include "ecflow.serviceAccountName" . }}
+      serviceAccountName: {{ .Release.Name }}-robot
       {{- if not .Values.storage.persistent }}
       initContainers:
       - name: init-container
-        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:latest
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:{{- include "ecflow.imageTag" . | trim }}
         volumeMounts:
         - name: ecflow-dir
           mountPath: "/ecflow"
@@ -52,7 +52,7 @@ spec:
       {{- end }}
       containers:
       - name: server
-        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:latest
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
         imagePullPolicy: Always
         ports:
         - containerPort: {{ .Values.server.port }}
@@ -109,7 +109,7 @@ spec:
         - name: ecflow-dir
           mountPath: "/ecflow"
       - name: sidecar
-        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:latest
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:{{- include "ecflow.imageTag" . | trim }}
         volumeMounts:
         - name: ecflow-dir
           mountPath: "/ecflow"
@@ -191,7 +191,7 @@ spec:
 
       {{- if .Values.logserver.enabled }}
       - name: logserver
-        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:latest
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
         imagePullPolicy: Always
         ports:
         - containerPort: {{ .Values.logserver.port }}
@@ -254,7 +254,7 @@ spec:
 {{- end }}
       from:
         kind: ImageStreamTag
-        name: {{ .Release.Name }}:latest
+        name: {{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
   - type: ImageChange
     imageChangeParams:
       automatic: true
@@ -262,7 +262,7 @@ spec:
       - sidecar
       from:
         kind: ImageStreamTag
-        name: {{ .Release.Name }}-util:latest
+        name: {{ .Release.Name }}-util:{{- include "ecflow.imageTag" . | trim }}
 
 {{- if .Values.api.enabled }}
 ---
@@ -285,7 +285,7 @@ spec:
     spec:
       containers:
       - name: http
-        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:latest
+        image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -316,7 +316,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /v1/server/ping
-            port: "8080-tcp"
+            port: 8080
           initialDelaySeconds: 10
           periodSeconds: 60
         volumeMounts:
@@ -340,5 +340,5 @@ spec:
       - http
       from:
         kind: ImageStreamTag
-        name: {{ .Release.Name }}:latest
+        name: {{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
 {{- end }}
