@@ -16,7 +16,6 @@ spec:
         app: {{ .Release.Name }}-server
     spec:
       serviceAccountName: {{ .Release.Name }}-robot
-      {{- if not .Values.storage.persistent }}
       initContainers:
       - name: init-container
         image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:{{- include "ecflow.imageTag" . | trim }}
@@ -37,19 +36,37 @@ spec:
         - name: GIT_SSH_COMMAND
           value: "ssh -i /mnt/secrets/ssh-privatekey -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
         {{- end }}
+        {{- if .Values.server.suites.accessToken.name }}
+        - name: GIT_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef: 
+              name: {{ .Values.server.suites.accessToken.name }}
+              key: token
+        - name: GIT_USER
+          value: {{ .Values.server.suites.accessToken.user | required "git user is required"}}
+        {{- end }}
+        - name: ECF_BASE
+          value: {{ .Values.server.base }}
         command:
         - sh
         - -c
         - |
           set -uex
-          mkdir -p /ecflow/suites
+          mkdir -p $ECF_BASE
+
+          # fetch repos
           {{ range .Values.server.suites.repos }}
-          cd /ecflow/suites
-          git clone -b {{ .branch | default "main" }} {{ .host }}
-          cd $(basename {{ .host }} .git)
+          cd $ECF_BASE
+          repodir=$(basename {{ .host }} .git)
+          if [ ! -d "$ECF_BASE/$repodir" ]; then
+            mkdir $repodir
+          fi
+          cd $repodir
+          if [ ! $(git rev-parse --is-inside-work-tree) ]; then
+            git clone -b {{ .branch | default "main" }} https://$GIT_USER:$GIT_ACCESS_TOKEN@{{ .host }} .
+          fi
           git rev-parse --short HEAD > .LAST_GREEN_COMMIT
           {{ end }}
-      {{- end }}
       containers:
       - name: server
         image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
@@ -62,10 +79,9 @@ spec:
         - -c
         - |
           {{- if .Values.storage.persistent }}
-          mkdir -p /ecflow/checkpoint /ecflow/suites
+          mkdir -p /ecflow/checkpoint
           {{- end }}
           /usr/ecflow5/bin/start.sh
-
         env:
         - name: ECF_BASE
           value: {{ .Values.server.base }}
@@ -123,6 +139,19 @@ spec:
         - name: GIT_SSH_COMMAND
           value: "ssh -i /mnt/secrets/ssh-privatekey -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
         {{- end }}
+        {{- if .Values.server.suites.accessToken.name }}
+        - name: GIT_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef: 
+              name: {{ .Values.server.suites.accessToken.name }}
+              key: token
+        - name: GIT_USER
+          value: {{ .Values.server.suites.accessToken.user | required "git user is required"}}
+        {{- end }}
+        - name: ECF_BASE
+          value: {{ .Values.server.base }}
+        - name: ECF_DISABLE_SUITE_LOAD
+          value: ""
         - name: HOME
           value: /tmp
         - name: EDITOR
@@ -153,26 +182,7 @@ spec:
         - |
           set -x
           {{- if .Values.storage.persistent }}
-          create_defs() {
-            for py in $(find $1 -name "*py"); do
-              dir=$(dirname $py)
-              cd $dir
-              ECF_FILES=$dir/scripts python3 $py
-            done
-          }
-
-          {{ range .Values.server.suites.repos }}
-          cd /ecflow/suites
-          repodir=$(basename {{ .host }} .git)
-          if [ ! -d "/ecflow/suites/$repodir" ]; then
-            git clone -b {{ .branch | default "main" }} {{ .host }}
-            cd $repodir
-            git rev-parse --short HEAD > .LAST_GREEN_COMMIT
-          fi
-          {{ end }}
-
-          create_defs /ecflow/suites
-
+          # update defs if there is new commit in git
           while [ 1 ]; do
             for d in $(ls -d /ecflow/suites/*); do
               cd $d
@@ -180,7 +190,13 @@ spec:
               if [ "$latest" != $(cat .LAST_GREEN_COMMIT) ]; then
                 git pull
                 echo $latest > .LAST_GREEN_COMMIT
-                create_defs $d
+
+                # create defs
+                for py in $(find $d -name "*py"); do
+                  dir=$(dirname $py)
+                  cd $dir
+                  ECF_FILES=$dir/scripts python3 $py
+                done
               fi
             done
             sleep 600
@@ -188,7 +204,6 @@ spec:
           {{ else }}
           sleep infinity
           {{- end }}
-
       {{- if .Values.logserver.enabled }}
       - name: logserver
         image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}:{{- include "ecflow.imageTag" . | trim }}
@@ -203,7 +218,6 @@ spec:
           set -x
           mkdir -p $LOGDIR
           ecflow_logsvr.pl 
-
         env:
         - name: ECF_PORT
           value: {{ .Values.server.port | quote }}
@@ -297,7 +311,6 @@ spec:
           set -x
           sleep 8
           ecflow_http -v --no_ssl 
-
         env:
         - name: ECF_PORT
           value: {{ .Values.server.port | quote }}

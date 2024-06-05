@@ -6,8 +6,7 @@
     "cloud",
     "storage",
     "server",
-    "api",
-    "serviceAccount"
+    "api"
   ],
   "properties": {
     "environment": {

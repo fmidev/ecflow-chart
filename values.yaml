@@ -2,15 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-environment: dev
-cloud: fmi
-prodType: dev
+environment: prod
+cloud: aws
+prodType: latest
 
 storage:
-  persistent: false
+  persistent: true
   # only applicable when persistent: true
   size: 128Mi
-  storageClassName: ocs-storagecluster-cephfs
+  storageClassName: gp3-csi
 
 server:
   port: 5237
@@ -18,12 +18,14 @@ server:
   base: /ecflow/suites
   suites:
     repos:
-    - name: reponame
-      host: git@github.com:org/repo.git
+    - name: ecflow-smartmet-nwc
+      host: github.com/fmidev/ecflow-smartmet-nwc.git
       branch: main
     sshKey:
-      # ssh key to a private repo, leave empty do disable
       name:
+    accessToken: 
+      user: fmidev
+      name: git-read-token
   resources:
     limits:
       cpu: "1"
@@ -46,8 +48,8 @@ logserver:
 api:
   enabled: true
   tokens:
-    fileName: "tokens.json"
-    configMapName: "tokens-file"
+    fileName: "rosa-ecflow-api-token.json"
+    configMapName: "ecflow-api-token"
   resources:
     limits:
       cpu: 500m
@@ -57,4 +59,4 @@ api:
       memory: 256Mi
   route:
     enabled: true
-    host: snwc-ecflow-dev.apps.ock.fmi.fi
+    host: snwc-ecflow-dev.apps.rosa.fmi-rosa-dev.ewcf.p3.openshiftapps.com

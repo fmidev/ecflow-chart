@@ -1,3 +1,30 @@
+{{- if eq .Values.environment "local" -}}
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}-pvc
+  labels:
+    type: local
+    app: {{ .Release.Namespace }}
+spec:
+  storageClassName: default
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  local: # local cluster/node mount path
+    path: /mnt/ecflow/data # local cluster/node mount path
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - crc
+---
+{{- end -}}
+
 {{- if .Values.storage.persistent }}
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -7,10 +34,12 @@ metadata:
   name: {{ .Release.Name }}-dir 
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.storage.size }}
   storageClassName: {{ .Values.storage.storageClassName }}
   volumeMode: Filesystem
 {{- end }}
+
+
