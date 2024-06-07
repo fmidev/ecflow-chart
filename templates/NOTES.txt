@@ -40,6 +40,18 @@ Log server disabled
 
 To access server with ecflow-ui, first use `oc` to provide port forwarding:
 
+{{- if .Values.server.ssl }}
+1. Copy the certificate file server.crt to $HOME/.ecflowrc/ssl/
+
+2. Find out the external domain name pointing to ecflow server
+  oc get service egress-ecflow -o go-template='{{ (index .status.loadBalancer.ingress 0).hostname }}'
+
+3. Add server to ecflow-ui with following information:
+* host: DOMAIN 
+* port: 5237
+* ssl: on
+
+{{- else }}
 1. Find out the name of the ecflow server pod:
 
   oc get pods -l deploymentconfig=smartmet-nwc-ecflow-dev-server -o custom-columns=NAME:.metadata.name --no-headers
@@ -53,3 +65,4 @@ Add server to ecflow-ui with following information:
 * host: localhost
 * port: 1{{ .Values.server.port }}
 * ssl: off
+{{- end }}
