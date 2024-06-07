@@ -81,8 +81,15 @@ spec:
           {{- if .Values.storage.persistent }}
           mkdir -p /ecflow/checkpoint
           {{- end }}
+
           /usr/ecflow5/bin/start.sh
         env:
+        {{- if .Values.server.ssl }}
+        - name: ECF_SSL
+          value: "1"
+        {{- end }}
+        - name: ECF_HOST
+          value: {{ .Release.Name }}-server
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         - name: ECF_PORT
@@ -124,6 +131,11 @@ spec:
         volumeMounts:
         - name: ecflow-dir
           mountPath: "/ecflow"
+        {{- if .Values.server.ssl }}
+        - name: ecf-ssl
+          mountPath: "/tmp/.ecflowrc/ssl"
+          readOnly: true
+        {{- end }}
       - name: sidecar
         image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:{{- include "ecflow.imageTag" . | trim }}
         volumeMounts:
@@ -132,6 +144,11 @@ spec:
         {{- if .Values.server.suites.sshKey.name }}
         - name: ssh-key
           mountPath: "/mnt/secrets"
+          readOnly: true
+        {{- end }}
+        {{- if .Values.server.ssl }}
+        - name: ecf-ssl
+          mountPath: "/tmp/.ecflowrc/ssl"
           readOnly: true
         {{- end }}
         env:
@@ -147,6 +164,10 @@ spec:
               key: token
         - name: GIT_USER
           value: {{ .Values.server.suites.accessToken.user | required "git user is required"}}
+        {{- end }}
+        {{- if .Values.server.ssl }}
+        - name: ECF_SSL
+          value: "1"
         {{- end }}
         - name: ECF_BASE
           value: {{ .Values.server.base }}
@@ -252,6 +273,11 @@ spec:
         secret:
           secretName: {{ .Values.server.suites.sshKey.name }}
       {{- end }}
+      {{- if .Values.server.ssl }}
+      - name: ecf-ssl
+        secret:
+          secretName: ecf-ssl
+      {{- end }}
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -310,12 +336,16 @@ spec:
         - |
           set -x
           sleep 8
-          ecflow_http -v --no_ssl 
+          ecflow_http -v --no_ssl
         env:
-        - name: ECF_PORT
-          value: {{ .Values.server.port | quote }}
+        {{- if .Values.server.ssl }}
+        - name: ECF_SSL
+          value: "1"
+        {{- end }}
         - name: ECF_HOST
           value:  {{ .Release.Name }}-server
+        - name: ECF_PORT
+          value: {{ .Values.server.port | quote }}
         - name: ECF_RESTAPI_TOKENS_FILE
           value: /mnt/secrets/{{ .Values.api.tokens.fileName }}
         - name: HOME
@@ -336,10 +366,20 @@ spec:
         - name: tokens-file
           mountPath: /mnt/secrets
           readOnly: true
+        {{- if .Values.server.ssl }}
+        - name: ecf-ssl
+          mountPath: "/tmp/.ecflowrc/ssl"
+          readOnly: true
+        {{- end }}
       volumes:
       - name: tokens-file
         configMap:
           name: {{ .Values.api.tokens.configMapName }}
+      {{- if .Values.server.ssl }}
+      - name: ecf-ssl
+        secret:
+          secretName: ecf-ssl
+      {{- end }}
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler

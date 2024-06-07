@@ -16,6 +16,7 @@ server:
   port: 5237
   home: /ecflow
   base: /ecflow/suites
+  ssl: true
   suites:
     repos:
     - name: ecflow-smartmet-nwc

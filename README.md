@@ -30,6 +30,15 @@ A new serviceaccount is created that has access to kube resources like pods, tem
 
 Necessary passwords and accounts need to be created.
 
+### ssl
+
+Create necessary certificates with these [instructions](https://ecflow.readthedocs.io/en/latest/ug/user_manual/ecflow_server/security/open_ssl.html).
+
+```
+oc create secret generic ecf-ssl --from-file=dh2048.pem=ssl/dh2048.pem --from-file=server.key=ssl/server.key --from-file=server.crt=ssl/server.crt
+```
+
+
 ## api
 
 REST api uses token-based authentication. The list containing accepted tokens is mounted to container from a configmap. The name of the map is given with api.tokens.configMapName.
