@@ -17,6 +17,7 @@ server:
   home: /ecflow
   base: /ecflow/suites
   ssl: true
+  egress: true
   suites:
     repos:
     - name: ecflow-smartmet-nwc

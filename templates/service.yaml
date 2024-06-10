@@ -46,3 +46,17 @@ spec:
   selector:
     app: {{ .Release.Name }}-logserver
 {{- end }}
+{{- if .Values.server.egress }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: egress-ecflow
+spec:
+  ports:
+  - name: ecflow-tcp
+    port: 5237
+  type: LoadBalancer 
+  selector:
+    app: {{ .Release.Name }}-server
+{{- end }}

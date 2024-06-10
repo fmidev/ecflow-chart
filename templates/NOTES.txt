@@ -40,11 +40,11 @@ Log server disabled
 
 To access server with ecflow-ui, first use `oc` to provide port forwarding:
 
-{{- if .Values.server.ssl }}
+{{- if .Values.server.egress }}
 1. Copy the certificate file server.crt to $HOME/.ecflowrc/ssl/
 
 2. Find out the external domain name pointing to ecflow server
-  oc get service egress-ecflow -o go-template='{{ (index .status.loadBalancer.ingress 0).hostname }}'
+  oc get service egress-ecflow | tail -1 | awk '{print $4}'
 
 3. Add server to ecflow-ui with following information:
 * host: DOMAIN 
