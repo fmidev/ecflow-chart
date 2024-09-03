@@ -207,9 +207,10 @@ spec:
           while [ 1 ]; do
             for d in $(ls -d /ecflow/suites/*); do
               cd $d
+              git fetch
               latest=$(git rev-parse --short origin/$(git rev-parse --abbrev-ref HEAD))
               if [ "$latest" != $(cat .LAST_GREEN_COMMIT) ]; then
-                git pull
+                git merge
                 echo $latest > .LAST_GREEN_COMMIT
 
                 # create defs
