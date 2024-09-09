@@ -120,7 +120,7 @@ spec:
         {{- end}}
         {{- if .Values.storage.persistent }}
         - name: ECF_DISABLE_SUITE_LOAD
-          value: "1"
+          value: ""
         - name: ECF_CHECK
           value: /ecflow/checkpoint/ecf.check
         - name: ECF_CHECKOLD
@@ -218,6 +218,10 @@ spec:
                   dir=$(dirname $py)
                   cd $dir
                   ECF_FILES=$dir/scripts python3 $py
+
+                  # replace defs
+                  def=$(basename $py .py)
+                  ecflow_client --replace /$def $def.def
                 done
               fi
             done
