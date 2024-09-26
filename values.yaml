@@ -39,6 +39,7 @@ server:
 logserver:
   enabled: true
   port: 9316
+  host:
   resources:
     limits:
       cpu: 500m

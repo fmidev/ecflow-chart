@@ -29,25 +29,8 @@ spec:
   selector:
     app: {{ .Release.Name }}-http
 {{- end }}
-{{- if .Values.logserver.enabled }}
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-logserver
-  labels:
-    {{- include "ecflow.labels" . | nindent 4 }}
-spec:
-  type: ClusterIP
-  ports:
-    - port: {{ .Values.logserver.port }}
-      protocol: TCP
-      name: {{ .Values.logserver.port }}-tcp
-  selector:
-    app: {{ .Release.Name }}-logserver
-{{- end }}
 {{- if .Values.server.egress }}
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -56,6 +39,10 @@ spec:
   ports:
   - name: ecflow-tcp
     port: 5237
+{{- if .Values.logserver.enabled }}
+  - name: logserver-tcp
+    port: {{ .Values.logserver.port }}
+{{- end }}
   type: LoadBalancer 
   selector:
     app: {{ .Release.Name }}-server

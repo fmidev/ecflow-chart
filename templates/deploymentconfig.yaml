@@ -108,7 +108,11 @@ spec:
         - name: ECF_LOGPORT
           value: {{ .Values.logserver.port | quote }}
         - name: ECF_LOGHOST
-          value: localhost
+          value: {{ .Values.logserver.host }}
+        - name: ECF_LOGPATH
+          value: /tmp/ecf_tmp
+        - name: ECF_LOGMAP
+          value: /tmp/ecf_tmp:/tmp/ecf_tmp:{{ .Values.server.home }}:/tmp/ecf_tmp
         {{- end }}
         {{- if .Values.api.enabled }}
         - name: ECF_RESTAPI_HOST
@@ -120,7 +124,7 @@ spec:
         {{- end}}
         {{- if .Values.storage.persistent }}
         - name: ECF_DISABLE_SUITE_LOAD
-          value: ""
+          value: "1"
         - name: ECF_CHECK
           value: /ecflow/checkpoint/ecf.check
         - name: ECF_CHECKOLD
@@ -131,6 +135,8 @@ spec:
         volumeMounts:
         - name: ecflow-dir
           mountPath: "/ecflow"
+        - name: logdir
+          mountPath: /tmp/ecf_tmp
         {{- if .Values.server.ssl }}
         - name: ecf-ssl
           mountPath: "/tmp/.ecflowrc/ssl"
@@ -254,7 +260,11 @@ spec:
         - name: LOGPORT
           value: {{ .Values.logserver.port | quote }}
         - name: LOGDIR
-          value: /tmp/logserver
+          value: /tmp/ecf_tmp
+        - name: LOGPATH
+          value: /tmp/ecf_tmp
+        - name: LOGMAP
+          value: /tmp/ecf_tmp:/tmp/ecf_tmp:{{ .Values.server.home }}:/tmp/ecf_tmp
         - name: ENVIRONMENT
           value: {{ .Values.environment }}
         - name: CLOUD
@@ -264,6 +274,8 @@ spec:
         volumeMounts:
         - name: ecflow-dir
           mountPath: "/ecflow"
+        - name: logdir
+          mountPath: /tmp/ecf_tmp
       {{- end }}
       volumes:
       - name: ecflow-dir
@@ -273,6 +285,8 @@ spec:
       {{ else }}
         emptyDir: {}
       {{- end }}
+      - name: logdir
+        emptyDir: {}
       {{- if .Values.server.suites.sshKey.name }}
       - name: ssh-key
         secret:
