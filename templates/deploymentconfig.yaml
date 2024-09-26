@@ -22,6 +22,7 @@ spec:
         volumeMounts:
         - name: ecflow-dir
           mountPath: "/ecflow"
+          subPath: ecflow
         {{- if .Values.server.suites.sshKey.name }}
         - name: ssh-key
           mountPath: "/mnt/secrets"
@@ -90,14 +91,14 @@ spec:
         {{- end }}
         - name: ECF_HOST
           value: {{ .Release.Name }}-server
-        - name: ECF_BASE
-          value: {{ .Values.server.base }}
         - name: ECF_PORT
           value: {{ .Values.server.port | quote}}
-        - name: ECF_HOME
-          value: {{ .Values.server.home }}
         - name: HOME
           value: "/tmp/"
+        - name: ECF_HOME
+          value: {{ .Values.server.home }}
+        - name: ECF_BASE
+          value: {{ .Values.server.base }}
         - name: ECF_INCLUDE
           value: "/etc/ecflow5"
         - name: ENVIRONMENT
@@ -108,11 +109,11 @@ spec:
         - name: ECF_LOGPORT
           value: {{ .Values.logserver.port | quote }}
         - name: ECF_LOGHOST
-          value: {{ .Values.logserver.host }}
+          value: {{ .Values.server.host }}
         - name: ECF_LOGPATH
-          value: /tmp/ecf_tmp
+          value: {{ .Values.server.logs }}
         - name: ECF_LOGMAP
-          value: /tmp/ecf_tmp:/tmp/ecf_tmp:{{ .Values.server.home }}:/tmp/ecf_tmp
+          value: {{ .Values.server.logs }}:{{ .Values.server.logs }}:{{ .Values.server.home }}:{{ .Values.server.logs }}
         {{- end }}
         {{- if .Values.api.enabled }}
         - name: ECF_RESTAPI_HOST
@@ -134,9 +135,11 @@ spec:
           {{- toYaml .Values.server.resources | nindent 12 }}
         volumeMounts:
         - name: ecflow-dir
-          mountPath: "/ecflow"
-        - name: logdir
-          mountPath: /tmp/ecf_tmp
+          mountPath: {{ .Values.server.home }}
+          subPath: "ecflow"
+        - name: ecflow-dir
+          mountPath: {{ .Values.server.logs }}
+          subPath: "logdir"
         {{- if .Values.server.ssl }}
         - name: ecf-ssl
           mountPath: "/tmp/.ecflowrc/ssl"
@@ -146,7 +149,11 @@ spec:
         image: {{ include "ecflow.localImageRepository" . }}/{{ .Release.Name }}-util:{{- include "ecflow.imageTag" . | trim }}
         volumeMounts:
         - name: ecflow-dir
-          mountPath: "/ecflow"
+          mountPath: {{ .Values.server.home }}
+          subPath: "ecflow"
+        - name: ecflow-dir
+          mountPath: {{ .Values.server.logs }}
+          subPath: "logdir"
         {{- if .Values.server.suites.sshKey.name }}
         - name: ssh-key
           mountPath: "/mnt/secrets"
@@ -175,12 +182,13 @@ spec:
         - name: ECF_SSL
           value: "1"
         {{- end }}
+        # No need to configure ECF_HOME in sidecar because it's currently defined at suite level (/tmp/ecf_tmp)
+        - name: HOME
+          value: /tmp
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         - name: ECF_DISABLE_SUITE_LOAD
           value: ""
-        - name: HOME
-          value: /tmp
         - name: EDITOR
           value: vim
         - name: PYTHONPATH
@@ -211,7 +219,7 @@ spec:
           {{- if .Values.storage.persistent }}
           # update defs if there is new commit in git
           while [ 1 ]; do
-            for d in $(ls -d /ecflow/suites/*); do
+            for d in $(ls -d $ECF_BASE/*); do
               cd $d
               git fetch
               latest=$(git rev-parse --short origin/$(git rev-parse --abbrev-ref HEAD))
@@ -260,11 +268,11 @@ spec:
         - name: LOGPORT
           value: {{ .Values.logserver.port | quote }}
         - name: LOGDIR
-          value: /tmp/ecf_tmp
+          value: {{ .Values.server.logs }}
         - name: LOGPATH
-          value: /tmp/ecf_tmp
+          value: {{ .Values.server.logs }}
         - name: LOGMAP
-          value: /tmp/ecf_tmp:/tmp/ecf_tmp:{{ .Values.server.home }}:/tmp/ecf_tmp
+          value: {{ .Values.server.logs }}:{{ .Values.server.logs }}:{{ .Values.server.home }}:{{ .Values.server.logs }}
         - name: ENVIRONMENT
           value: {{ .Values.environment }}
         - name: CLOUD
@@ -273,9 +281,11 @@ spec:
           {{- toYaml .Values.logserver.resources | nindent 12 }}
         volumeMounts:
         - name: ecflow-dir
-          mountPath: "/ecflow"
-        - name: logdir
-          mountPath: /tmp/ecf_tmp
+          mountPath: {{ .Values.server.home }}
+          subPath: "ecflow"
+        - name: ecflow-dir
+          mountPath: {{ .Values.server.logs }}
+          subPath: "logdir"
       {{- end }}
       volumes:
       - name: ecflow-dir

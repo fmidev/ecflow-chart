@@ -13,9 +13,11 @@ storage:
   storageClassName: gp3-csi
 
 server:
+  host: 
   port: 5237
   home: /ecflow
   base: /ecflow/suites
+  logs: /tmp/ecf_tmp
   ssl: true
   egress: true
   suites:
@@ -39,7 +41,6 @@ server:
 logserver:
   enabled: true
   port: 9316
-  host:
   resources:
     limits:
       cpu: 500m

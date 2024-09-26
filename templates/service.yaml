@@ -46,4 +46,8 @@ spec:
   type: LoadBalancer 
   selector:
     app: {{ .Release.Name }}-server
+status:
+  loadBalancer:
+    ingress:
+      - hostname: {{ .Values.server.host }}
 {{- end }}
