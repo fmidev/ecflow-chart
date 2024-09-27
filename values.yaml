@@ -13,13 +13,13 @@ storage:
   storageClassName: gp3-csi
 
 server:
-  host: 
+  host:
   port: 5237
   home: /ecflow
   base: /ecflow/suites
   logs: /tmp/ecf_tmp
   ssl: true
-  egress: true
+  egress: false
   suites:
     repos:
     - name: ecflow-smartmet-nwc

@@ -124,8 +124,8 @@ spec:
           value: "8080"
         {{- end}}
         {{- if .Values.storage.persistent }}
-        - name: ECF_DISABLE_SUITE_LOAD
-          value: "1"
+        - name: ECF_DISABLE_SUITE_LOAD 
+          value: "1" # load suites in sidecar (where the ECF_HOME/ECF_OUT is correctly set)
         - name: ECF_CHECK
           value: /ecflow/checkpoint/ecf.check
         - name: ECF_CHECKOLD
@@ -188,7 +188,7 @@ spec:
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         - name: ECF_DISABLE_SUITE_LOAD
-          value: ""
+          value: "1" # this must be null on the first time ecflow is installed so the suite definitions are loaded and started
         - name: EDITOR
           value: vim
         - name: PYTHONPATH
@@ -217,6 +217,21 @@ spec:
         - |
           set -x
           {{- if .Values.storage.persistent }}
+
+          if [ -z "$ECF_DISABLE_SUITE_LOAD" ]; then
+            if [ -z "$ECF_BASE" ] ; then
+              ECF_BASE=/usr/share/ecflow/suites
+            fi
+
+            for def in $(find $ECF_BASE -name "*def"); do
+              /usr/ecflow5/bin/ecflow_client --load $def
+            done
+
+            for s in $(ecflow_client --suites); do
+              ecflow_client --begin $s
+            done
+          fi
+
           # update defs if there is new commit in git
           while [ 1 ]; do
             for d in $(ls -d $ECF_BASE/*); do
@@ -295,8 +310,6 @@ spec:
       {{ else }}
         emptyDir: {}
       {{- end }}
-      - name: logdir
-        emptyDir: {}
       {{- if .Values.server.suites.sshKey.name }}
       - name: ssh-key
         secret:
