@@ -378,7 +378,7 @@ spec:
         - |
           set -x
           sleep 8
-          ecflow_http -v --no_ssl
+          ecflow_http -v
         env:
         {{- if .Values.server.ssl }}
         - name: ECF_SSL
@@ -402,6 +402,7 @@ spec:
           httpGet:
             path: /v1/server/ping
             port: 8080
+            scheme: HTTPS
           initialDelaySeconds: 10
           periodSeconds: 60
         volumeMounts:
