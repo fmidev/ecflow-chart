@@ -23,6 +23,8 @@ server:
   logs: /tmp/ecf_tmp
   ssl: true
   egress: false
+  # this must be empty string on the first time ecflow is installed so the suite definitions will be loaded automatically
+  disableLoad: "1"
   suites:
     repos:
     - name: ecflow-smartmet-nwc

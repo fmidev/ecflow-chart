@@ -125,7 +125,7 @@ spec:
         {{- end}}
         {{- if .Values.storage.persistent }}
         - name: ECF_DISABLE_SUITE_LOAD 
-          value: "1" # load suites in sidecar (where the ECF_HOME/ECF_OUT is correctly set)
+          value: "true" # load suites in sidecar (where the ECF_HOME/ECF_OUT is correctly set)
         - name: ECF_CHECK
           value: /ecflow/checkpoint/ecf.check
         - name: ECF_CHECKOLD
@@ -154,30 +154,12 @@ spec:
         - name: ecflow-dir
           mountPath: {{ .Values.server.logs }}
           subPath: "logdir"
-        {{- if .Values.server.suites.sshKey.name }}
-        - name: ssh-key
-          mountPath: "/mnt/secrets"
-          readOnly: true
-        {{- end }}
         {{- if .Values.server.ssl }}
         - name: ecf-ssl
           mountPath: "/tmp/.ecflowrc/ssl"
           readOnly: true
         {{- end }}
         env:
-        {{- if not (eq .Values.server.suites.sshKey.name "") }}
-        - name: GIT_SSH_COMMAND
-          value: "ssh -i /mnt/secrets/ssh-privatekey -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-        {{- end }}
-        {{- if .Values.server.suites.accessToken.name }}
-        - name: GIT_ACCESS_TOKEN
-          valueFrom:
-            secretKeyRef: 
-              name: {{ .Values.server.suites.accessToken.name }}
-              key: token
-        - name: GIT_USER
-          value: {{ .Values.server.suites.accessToken.user | required "git user is required"}}
-        {{- end }}
         {{- if .Values.server.ssl }}
         - name: ECF_SSL
           value: "1"
@@ -188,7 +170,7 @@ spec:
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         - name: ECF_DISABLE_SUITE_LOAD
-          value: "1" # this must be null on the first time ecflow is installed so the suite definitions will be loaded
+          value: {{ .Values.server.disableLoad }}
         - name: EDITOR
           value: vim
         - name: PYTHONPATH
@@ -223,7 +205,9 @@ spec:
               cd $d
               git fetch
               latest=$(git rev-parse --short origin/$(git rev-parse --abbrev-ref HEAD))
-              if [ "$latest" != $(cat .LAST_GREEN_COMMIT) ]; then
+
+              # if running sidecar for the first time or the git repository has been updated
+              if [ -z "$ECF_DISABLE_SUITE_LOAD" ] || [ "$latest" != $(cat .LAST_GREEN_COMMIT) ]; then
                 git merge
                 echo $latest > .LAST_GREEN_COMMIT
 
@@ -232,28 +216,21 @@ spec:
                   dir=$(dirname $py)
                   cd $dir
                   ECF_FILES=$dir/scripts python3 $py
-
-                  # load defs for the first time
-                  if [ -z "$ECF_DISABLE_SUITE_LOAD" ]; then
-                    if [ -z "$ECF_BASE" ] ; then
-                      ECF_BASE=/usr/share/ecflow/suites
-                    fi
-
-                    for def in $(find $ECF_BASE -name "*def"); do
-                      ecflow_client --load $def
-                    done
-
-                    for s in $(ecflow_client --suites); do
-                      ecflow_client --begin $s
-                    done
-
-                    export ECF_DISABLE_SUITE_LOAD="1"
-                  fi
-
-                  # replace defs
                   def=$(basename $py .py)
-                  ecflow_client --replace /$def $def.def
+
+                  if [ -z "$ECF_DISABLE_SUITE_LOAD" ]; then
+                    ecflow_client --load $def.def
+                  else
+                    ecflow_client --replace /$def $def.def
+                  fi
                 done
+
+                if [ -z "$ECF_DISABLE_SUITE_LOAD" ]; then
+                  for s in $(ecflow_client --suites); do
+                    ecflow_client --begin $s
+                  done
+                  export ECF_DISABLE_SUITE_LOAD="1"
+                fi
               fi
             done
             sleep 600
