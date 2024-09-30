@@ -188,7 +188,7 @@ spec:
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         - name: ECF_DISABLE_SUITE_LOAD
-          value: "1" # this must be null on the first time ecflow is installed so the suite definitions are loaded and started
+          value: "1" # this must be null on the first time ecflow is installed so the suite definitions will be loaded
         - name: EDITOR
           value: vim
         - name: PYTHONPATH
@@ -217,21 +217,6 @@ spec:
         - |
           set -x
           {{- if .Values.storage.persistent }}
-
-          if [ -z "$ECF_DISABLE_SUITE_LOAD" ]; then
-            if [ -z "$ECF_BASE" ] ; then
-              ECF_BASE=/usr/share/ecflow/suites
-            fi
-
-            for def in $(find $ECF_BASE -name "*def"); do
-              /usr/ecflow5/bin/ecflow_client --load $def
-            done
-
-            for s in $(ecflow_client --suites); do
-              ecflow_client --begin $s
-            done
-          fi
-
           # update defs if there is new commit in git
           while [ 1 ]; do
             for d in $(ls -d $ECF_BASE/*); do
@@ -247,6 +232,23 @@ spec:
                   dir=$(dirname $py)
                   cd $dir
                   ECF_FILES=$dir/scripts python3 $py
+
+                  # load defs for the first time
+                  if [ -z "$ECF_DISABLE_SUITE_LOAD" ]; then
+                    if [ -z "$ECF_BASE" ] ; then
+                      ECF_BASE=/usr/share/ecflow/suites
+                    fi
+
+                    for def in $(find $ECF_BASE -name "*def"); do
+                      ecflow_client --load $def
+                    done
+
+                    for s in $(ecflow_client --suites); do
+                      ecflow_client --begin $s
+                    done
+
+                    export ECF_DISABLE_SUITE_LOAD="1"
+                  fi
 
                   # replace defs
                   def=$(basename $py .py)
@@ -389,7 +391,7 @@ spec:
         - name: ECF_PORT
           value: {{ .Values.server.port | quote }}
         - name: ECF_RESTAPI_TOKENS_FILE
-          value: /mnt/secrets/{{ .Values.api.tokens.fileName }}
+          value: {{ .Values.secrets.storepath }}/{{ .Values.api.tokens.alias }}
         - name: HOME
           value: "/tmp/"
         - name: ENVIRONMENT
@@ -406,8 +408,8 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 60
         volumeMounts:
-        - name: tokens-file
-          mountPath: /mnt/secrets
+        - name: secrets-store-inline
+          mountPath: {{ .Values.secrets.storepath }}
           readOnly: true
         {{- if .Values.server.ssl }}
         - name: ecf-ssl
@@ -415,14 +417,17 @@ spec:
           readOnly: true
         {{- end }}
       volumes:
-      - name: tokens-file
-        configMap:
-          name: {{ .Values.api.tokens.configMapName }}
       {{- if .Values.server.ssl }}
       - name: ecf-ssl
         secret:
           secretName: ecf-ssl
       {{- end }}
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ .Release.Name }}-secrets
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler

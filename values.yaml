@@ -12,6 +12,9 @@ storage:
   size: 128Mi
   storageClassName: gp3-csi
 
+secrets:
+  storepath: /mnt/secretstore
+
 server:
   host:
   port: 5237
@@ -52,8 +55,8 @@ logserver:
 api:
   enabled: true
   tokens:
-    fileName: "rosa-ecflow-api-token.json"
-    configMapName: "ecflow-api-token"
+    alias: "rosa-ecflow-api-token.json"
+    secretName: "ecflow-http-api-token"
   resources:
     limits:
       cpu: 500m
