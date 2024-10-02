@@ -23,9 +23,9 @@ spec:
         - name: ecflow-dir
           mountPath: "/ecflow"
           subPath: ecflow
-        {{- if .Values.server.suites.sshKey.name }}
-        - name: ssh-key
-          mountPath: "/mnt/secrets"
+        {{- if eq .Values.cloud "aws" }}
+        - name: secrets-store-inline
+          mountPath: {{ .Values.secrets.storepath }}
           readOnly: true
         {{- end }}
         env:
@@ -33,19 +33,13 @@ spec:
           value: {{ .Values.environment }}
         - name: CLOUD
           value: {{ .Values.cloud }}
-        {{- if .Values.server.suites.sshKey.name }}
-        - name: GIT_SSH_COMMAND
-          value: "ssh -i /mnt/secrets/ssh-privatekey -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-        {{- end }}
-        {{- if .Values.server.suites.accessToken.name }}
         - name: GIT_ACCESS_TOKEN
           valueFrom:
             secretKeyRef: 
-              name: {{ .Values.server.suites.accessToken.name }}
+              name: {{ .Values.server.suites.accessToken.secretName | required "git access token is required" }}
               key: token
         - name: GIT_USER
           value: {{ .Values.server.suites.accessToken.user | required "git user is required"}}
-        {{- end }}
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         command:
@@ -170,7 +164,7 @@ spec:
         - name: ECF_BASE
           value: {{ .Values.server.base }}
         - name: ECF_DISABLE_SUITE_LOAD
-          value: {{ .Values.server.disableLoad }}
+          value: {{ .Values.server.disableLoad | quote }}
         - name: EDITOR
           value: vim
         - name: PYTHONPATH
@@ -289,15 +283,18 @@ spec:
       {{ else }}
         emptyDir: {}
       {{- end }}
-      {{- if .Values.server.suites.sshKey.name }}
-      - name: ssh-key
-        secret:
-          secretName: {{ .Values.server.suites.sshKey.name }}
-      {{- end }}
       {{- if .Values.server.ssl }}
       - name: ecf-ssl
         secret:
           secretName: ecf-ssl
+      {{- end }}
+      {{- if eq .Values.cloud "aws" }}
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ .Release.Name }}-secrets
       {{- end }}
       dnsPolicy: ClusterFirst
       restartPolicy: Always
@@ -357,7 +354,11 @@ spec:
         - |
           set -x
           sleep 8
+          {{- if .Values.server.ssl }}
           ecflow_http -v
+          {{- else }}
+          ecflow_http -v --no_ssl
+          {{- end }}
         env:
         {{- if .Values.server.ssl }}
         - name: ECF_SSL
@@ -385,9 +386,11 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 60
         volumeMounts:
+        {{- if eq .Values.cloud "aws" }}
         - name: secrets-store-inline
           mountPath: {{ .Values.secrets.storepath }}
           readOnly: true
+        {{- end }}
         {{- if .Values.server.ssl }}
         - name: ecf-ssl
           mountPath: "/tmp/.ecflowrc/ssl"
@@ -399,12 +402,14 @@ spec:
         secret:
           secretName: ecf-ssl
       {{- end }}
+      {{- if eq .Values.cloud "aws" }}
       - name: secrets-store-inline
         csi:
           driver: secrets-store.csi.k8s.io
           readOnly: true
           volumeAttributes:
             secretProviderClass: {{ .Release.Name }}-secrets
+      {{- end }}
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler

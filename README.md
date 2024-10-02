@@ -38,7 +38,6 @@ Create necessary certificates with these [instructions](https://ecflow.readthedo
 oc create secret generic ecf-ssl --from-file=dh2048.pem=ssl/dh2048.pem --from-file=server.key=ssl/server.key --from-file=server.crt=ssl/server.crt
 ```
 
-
 ## api
 
 REST api uses token-based authentication. The list containing accepted tokens is mounted to container from a configmap. The name of the map is given with api.tokens.configMapName.
@@ -51,7 +50,10 @@ sidecar will try to pull suites and scripts from a git repo when
 * non-persistent storage is used
 * persistent storage is used and container starts for the first time
 
-If git repo is private, an ssh private key is needed. The name of the key should be put to server.suites.repos.sshKey.
+If git repo is private, an [access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) secret needs to be created
+```
+oc create secret generic git-read-token --from-literal=token=github.token
+```
 
 # Usage:
 

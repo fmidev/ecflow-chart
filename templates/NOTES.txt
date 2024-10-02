@@ -66,3 +66,14 @@ Add server to ecflow-ui with following information:
 * port: 1{{ .Values.server.port }}
 * ssl: off
 {{- end }}
+
+{{- if eq .Values.cloud "aws" }}
+Post-install operations
+
+1. Secret storage driver needs extra annotations for these serviceaccounts:
+export ROLE_ARN=$(aws iam get-role --role-name openshift-access-to-ecflow-secrets --query 'Role.[Arn]' --output text)
+oc annotate serviceaccount default eks.amazonaws.com/role-arn=$ROLE_ARN
+oc annotate serviceaccount ecflow-robot eks.amazonaws.com/role-arn=$ROLE_ARN
+
+-> secrets are managed automatically after this
+{{- end }}
